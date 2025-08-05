@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Adventure - Optimize Edilmiş 2D Platform Oyunu</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Press Start 2P', cursive;
+            user-select: none;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #1a2a6c);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            padding: 20px;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 1000px;
+            height: 650px;
+            background: #1e1f4b;
+            border: 6px solid #4a4e8c;
+            border-radius: 12px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+            overflow: hidden;
+        }
+        
+        #game-canvas {
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%231e1f4b"/><circle cx="20" cy="20" r="2" fill="%233a3d7a" opacity="0.6"/><circle cx="60" cy="40" r="1.5" fill="%233a3d7a" opacity="0.6"/><circle cx="80" cy="70" r="1" fill="%233a3d7a" opacity="0.6"/></svg>');
+            width: 100%;
+            height: 100%;
+        }
+        
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            color: white;
+            font-size: 18px;
+            text-shadow: 2px 2px 0 #000;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.5);
+        }
+        
+        #level-indicator {
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            background: rgba(255, 204, 0, 0.8);
+            color: #1a2a6c;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 16px;
+            z-index: 11;
+        }
+        
+        #power-up-indicator {
+            position: absolute;
+            top: 70px;
+            left: 20px;
+            background: rgba(102, 204, 255, 0.8);
+            color: #1a2a6c;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 16px;
+            z-index: 11;
+            display: none;
+        }
+        
+        #controls-info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #66ccff;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-size: 14px;
+            z-index: 11;
+            border: 2px solid #4a4e8c;
+        }
+        
+        #start-screen, #game-over-screen, #level-complete-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            z-index: 20;
+            padding: 20px;
+        }
+        
+        #game-over-screen, #level-complete-screen {
+            display: none;
+        }
+        
+        h1 {
+            font-size: 48px;
+            margin-bottom: 25px;
+            color: #ffcc00;
+            text-shadow: 0 0 15px #ff6600, 4px 4px 0 #cc3300;
+            letter-spacing: 4px;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .screen-content {
+            max-width: 85%;
+            background: rgba(30, 31, 75, 0.9);
+            padding: 30px;
+            border-radius: 15px;
+            border: 3px solid #4a4e8c;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+        }
+        
+        p {
+            margin: 18px 0;
+            line-height: 1.8;
+            color: #66ccff;
+            font-size: 18px;
+        }
+        
+        .highlight {
+            color: #ffcc00;
+            font-weight: bold;
+            text-shadow: 0 0 5px #ff6600;
+        }
+        
+        button {
+            background: linear-gradient(to bottom, #ffcc00, #ff6600);
+            border: none;
+            color: #1a2a6c;
+            padding: 18px 35px;
+            font-size: 20px;
+            margin-top: 35px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 6px 0 #cc3300;
+            font-weight: bold;
+            letter-spacing: 1.5px;
+        }
+        
+        button:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 0 #cc3300;
+            background: linear-gradient(to bottom, #ffd52e, #ff7733);
+        }
+        
+        button:active {
+            transform: translateY(3px);
+            box-shadow: 0 3px 0 #cc3300;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            margin-top: 15px;
+            gap: 35px;
+        }
+        
+        .control-item {
+            background: rgba(58, 61, 122, 0.8);
+            padding: 12px 24px;
+            border-radius: 12px;
+            border: 3px solid #4a4e8c;
+            font-size: 16px;
+        }
+        
+        .power-up-info {
+            display: flex;
+            justify-content: center;
+            margin-top: 25px;
+            gap: 25px;
+        }
+        
+        .power-up-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(30, 31, 75, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #4a4e8c;
+        }
+        
+        .power-up-icon {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 10px;
+        }
+        
+        footer {
+            position: absolute;
+            bottom: 20px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+            text-align: center;
+            width: 100%;
+        }
+        
+        .level-stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            background: rgba(58, 61, 122, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+        }
+        
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="game-container">
+        <div id="ui-overlay">
+            <div id="score">SKOR: <span>0</span></div>
+            <div id="lives">CAN: <span>❤️❤️❤️</span></div>
+            <div id="timer">ZAMAN: <span>60</span></div>
+        </div>
+        
+        <div id="level-indicator">SEVİYE: <span>1</span></div>
+        <div id="power-up-indicator">HIZ ARTIŞI: <span id="power-up-timer">10</span>s</div>
+        
+        <div id="controls-info">← → : Hareket | SPACE : Zıplama</div>
+        
+        <canvas id="game-canvas" width="1000" height="650"></canvas>
+        
+        <div id="start-screen">
+            <div class="screen-content">
+                <h1>PIXEL ADVENTURE</h1>
+                <p>Kahramanımızı platformlar arasında hareket ettir, yıldızları topla, güç yükseltmelerini yakala ve düşmanlardan kaç!</p>
+                <p><span class="highlight">← →</span> tuşları ile hareket et, <span class="highlight">SPACE</span> ile zıpla</p>
+                
+                <div class="controls">
+                    <div class="control-item">← → : HAREKET</div>
+                    <div class="control-item">SPACE : ZIPLAMA</div>
+                </div>
+                
+                <div class="power-up-info">
+                    <div class="power-up-item">
+                        <div class="power-up-icon" style="background:#ffcc00; border-radius:50%;"></div>
+                        <div>YILDIZ: +100 Puan</div>
+                    </div>
+                    <div class="power-up-item">
+                        <div class="power-up-icon" style="background:#66ff66; border-radius:50%;"></div>
+                        <div>YEŞİL: +1 Can</div>
+                    </div>
+                    <div class="power-up-item">
+                        <div class="power-up-icon" style="background:#ff66ff; border-radius:50%;"></div>
+                        <div>PEMBE: Hız Artışı</div>
+                    </div>
+                </div>
+                
+                <button id="start-btn">OYUNU BAŞLAT</button>
+            </div>
+        </div>
+        
+        <div id="game-over-screen">
+            <div class="screen-content">
+                <h1>OYUN BİTTİ</h1>
+                <div class="level-stats">
+                    <div class="stat-item">
+                        <div>SEVİYE</div>
+                        <div class="highlight"><span id="final-level">1</span></div>
+                    </div>
+                    <div class="stat-item">
+                        <div>TOPLAM PUAN</div>
+                        <div class="highlight"><span id="final-score">0</span></div>
+                    </div>
+                    <div class="stat-item">
+                        <div>TOPLANAN YILDIZ</div>
+                        <div class="highlight"><span id="final-stars">0</span></div>
+                    </div>
+                </div>
+                <p id="message">Daha iyisini yapabilirsin!</p>
+                <button id="restart-btn">TEKRAR DENE</button>
+            </div>
+        </div>
+        
+        <div id="level-complete-screen">
+            <div class="screen-content">
+                <h1>SEVİYE TAMAMLANDI!</h1>
+                <div class="level-stats">
+                    <div class="stat-item">
+                        <div>SEVİYE</div>
+                        <div class="highlight"><span id="complete-level">1</span></div>
+                    </div>
+                    <div class="stat-item">
+                        <div>SEVİYE PUANI</div>
+                        <div class="highlight"><span id="level-score">0</span></div>
+                    </div>
+                    <div class="stat-item">
+                        <div>TOPLANAN YILDIZ</div>
+                        <div class="highlight"><span id="level-stars">0</span>/<span id="total-stars">0</span></div>
+                    </div>
+                </div>
+                <p>Bir sonraki seviyeye hazır mısın?</p>
+                <button id="next-level-btn">SONRAKİ SEVİYE</button>
+            </div>
+        </div>
+        
+        <footer>JavaScript 2D Platform Oyunu | Seviye Sistemi, Güç Yükseltmeleri ve Animasyonlar</footer>
+    </div>
+
+    <script>
+       
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const levelCompleteScreen = document.getElementById('level-complete-screen');
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        const nextLevelBtn = document.getElementById('next-level-btn');
+        const scoreElement = document.querySelector('#score span');
+        const livesElement = document.querySelector('#lives span');
+        const timerElement = document.querySelector('#timer span');
+        const levelElement = document.querySelector('#level-indicator span');
+        const powerUpElement = document.getElementById('power-up-indicator');
+        const powerUpTimerElement = document.getElementById('power-up-timer');
+        const finalScoreElement = document.getElementById('final-score');
+        const finalLevelElement = document.getElementById('final-level');
+        const finalStarsElement = document.getElementById('final-stars');
+        const levelScoreElement = document.getElementById('level-score');
+        const completeLevelElement = document.getElementById('complete-level');
+        const levelStarsElement = document.getElementById('level-stars');
+        const totalStarsElement = document.getElementById('total-stars');
+        const messageElement = document.getElementById('message');
+  
+        let gameState = {
+            score: 0,
+            lives: 3,
+            time: 60,
+            level: 1,
+            gameRunning: false,
+            gameLoopId: null,
+            powerUpActive: false,
+            powerUpTime: 0,
+            starsCollected: 0,
+            totalStars: 0
+        };
+
+        
+        let currentPlayerFrame = 0;
+        let currentEnemyFrame = 0;
+        let frameCounter = 0;
+        
+      
+        const player = {
+            x: 100,
+            y: 500,
+            width: 40,
+            height: 60,
+            speed: 5,
+            velX: 0,
+            velY: 0,
+            jumping: false,
+            grounded: false,
+            facing: 'right',
+            jumpPower: 14,
+            gravity: 0.4
+        };
+
+         
+        const levels = [
+            {
+                platforms: [
+                    {x: 0, y: 600, width: 300, height: 20, color: '#4a8c4a'},
+                    {x: 350, y: 550, width: 180, height: 20, color: '#4a8c4a'},
+                    {x: 580, y: 500, width: 180, height: 20, color: '#4a8c4a'},
+                    {x: 800, y: 450, width: 200, height: 20, color: '#4a8c4a'},
+                    {x: 700, y: 380, width: 180, height: 20, color: '#4a8c4a'},
+                    {x: 450, y: 320, width: 180, height: 20, color: '#4a8c4a'},
+                    {x: 150, y: 270, width: 180, height: 20, color: '#4a8c4a'},
+                    {x: 0, y: 220, width: 100, height: 20, color: '#4a8c4a'}
+                ],
+                stars: [
+                    {x: 380, y: 510, radius: 12, color: '#ffcc00', collected: false},
+                    {x: 610, y: 460, radius: 12, color: '#ffcc00', collected: false},
+                    {x: 850, y: 410, radius: 12, color: '#ffcc00', collected: false},
+                    {x: 750, y: 340, radius: 12, color: '#ffcc00', collected: false},
+                    {x: 500, y: 280, radius: 12, color: '#ffcc00', collected: false},
+                    {x: 200, y: 230, radius: 12, color: '#ffcc00', collected: false}
+                ],
+                enemies: [
+                    {x: 450, y: 530, width: 40, height: 40, speed: 2, direction: 1, color: '#cc3333'},
+                    {x: 200, y: 250, width: 40, height: 40, speed: 3, direction: 1, color: '#cc3333'}
+                ],
+                powerUps: [
+                    {x: 800, y: 400, width: 30, height: 30, type: 'life', collected: false},
+                    {x: 150, y: 400, width: 30, height: 30, type: 'speed', collected: false}
+                ],
+                time: 60
+            },
+            {
+                platforms: [
+                    {x: 0, y: 600, width: 180, height: 20, color: '#4a8c4a'},
+                    {x: 230, y: 550, width: 180, height: 20, color: '#4a8c4a'},
+                    {x: 460, y: 500, width: 180, height: 20, color: '#4a8c4a'},
+                    {x: 690, y: 450, width: 180, height: 20, color: '#4a8c4a'},
+                    {x: 800, y: 400, width: 200, height: 20, color: '#4a8c4a'},
+                    {x: 600, y: 350, width: 180, height: 20, color: '#4a8c4a'},
+                    {x: 350, y: 300, width: 180, height: 20, color: '#4a8c4a'},
+                    {x: 150, y: 250, width: 180, height: 20, color: '#4a8c4a'},
+                    {x: 0, y: 200, width: 100, height: 20, color: '#4a8c4a'},
+                    {x: 250, y: 150, width: 180, height: 20, color: '#4a8c4a'}
+                ],
+                stars: [
+                    {x: 280, y: 510, radius: 12, color: '#ffcc00', collected: false},
+                    {x: 510, y: 460, radius: 12, color: '#ffcc00', collected: false},
+                    {x: 850, y: 410, radius: 12, color: '#ffcc00', collected: false},
+                    {x: 650, y: 310, radius: 12, color: '#ffcc00', collected: false},
+                    {x: 400, y: 260, radius: 12, color: '#ffcc00', collected: false},
+                    {x: 200, y: 210, radius: 12, color: '#ffcc00', collected: false},
+                    {x: 300, y: 110, radius: 12, color: '#ffcc00', collected: false}
+                ],
+                enemies: [
+                    {x: 460, y: 480, width: 40, height: 40, speed: 2, direction: 1, color: '#cc3333'},
+                    {x: 700, y: 380, width: 40, height: 40, speed: 2, direction: -1, color: '#cc3333'},
+                    {x: 250, y: 280, width: 40, height: 40, speed: 3, direction: 1, color: '#cc3333'},
+                    {x: 300, y: 130, width: 40, height: 40, speed: 3, direction: -1, color: '#cc3333'}
+                ],
+                powerUps: [
+                    {x: 80, y: 550, width: 30, height: 30, type: 'life', collected: false},
+                    {x: 850, y: 350, width: 30, height: 30, type: 'speed', collected: false},
+                    {x: 350, y: 400, width: 30, height: 30, type: 'life', collected: false}
+                ],
+                time: 75
+            }
+        ];
+
+        let currentLevel = 0;
+        let platforms = [];
+        let stars = [];
+        let enemies = [];
+        let powerUps = [];
+
+      
+        startBtn.addEventListener('click', () => {
+            startScreen.style.display = 'none';
+            loadLevel(0);
+        });
+
+        
+        restartBtn.addEventListener('click', () => {
+            gameOverScreen.style.display = 'none';
+            loadLevel(0);
+        });
+
+       
+        nextLevelBtn.addEventListener('click', () => {
+            levelCompleteScreen.style.display = 'none';
+            loadLevel(currentLevel + 1);
+        });
+
+      
+        function loadLevel(levelIndex) {
+            if (levelIndex >= levels.length) {
+               
+                levelCompleteScreen.style.display = 'flex';
+                levelScoreElement.textContent = gameState.score;
+                levelStarsElement.textContent = gameState.starsCollected;
+                totalStarsElement.textContent = gameState.totalStars;
+                completeLevelElement.textContent = currentLevel;
+                return;
+            }
+            
+            currentLevel = levelIndex;
+            const level = levels[levelIndex];
+            
+            platforms = JSON.parse(JSON.stringify(level.platforms));
+            stars = JSON.parse(JSON.stringify(level.stars));
+            enemies = JSON.parse(JSON.stringify(level.enemies));
+            powerUps = JSON.parse(JSON.stringify(level.powerUps));
+            
+            gameState.gameRunning = true;
+            gameState.time = level.time;
+            gameState.level = levelIndex + 1;
+            gameState.starsCollected = 0;
+            gameState.totalStars = stars.length;
+            
+            player.x = 100;
+            player.y = 500;
+            player.velX = 0;
+            player.velY = 0;
+            player.jumping = false;
+            player.grounded = true;
+            
+            updateUI();
+            gameLoop();
+        }
+
+     
+        const keys = {};
+        
+        window.addEventListener('keydown', e => {
+            keys[e.key] = true;
+           
+            if ((e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w') && player.grounded) {
+                player.velY = -player.jumpPower;
+                player.grounded = false;
+                player.jumping = true;
+            }
+        });
+        
+        window.addEventListener('keyup', e => {
+            keys[e.key] = false;
+        });
+
+      
+        function updateUI() {
+            scoreElement.textContent = gameState.score;
+            timerElement.textContent = Math.max(0, Math.floor(gameState.time));
+            livesElement.textContent = '❤️'.repeat(gameState.lives);
+            levelElement.textContent = gameState.level;
+            
+          
+            if (gameState.powerUpActive) {
+                powerUpElement.style.display = 'block';
+                powerUpTimerElement.textContent = Math.max(0, Math.ceil(gameState.powerUpTime));
+            } else {
+                powerUpElement.style.display = 'none';
+            }
+        }
+
+       
+        function update() {
+            
+            player.velY += player.gravity;
+            
+          
+            if (gameState.powerUpActive) {
+                gameState.powerUpTime -= 1/60;
+                if (gameState.powerUpTime <= 0) {
+                    gameState.powerUpActive = false;
+                    player.speed = 5;
+                }
+            }
+            
+        
+            if (keys['ArrowRight'] || keys['d']) {
+                player.velX = player.speed;
+                player.facing = 'right';
+            }
+            
+            else if (keys['ArrowLeft'] || keys['a']) {
+                player.velX = -player.speed;
+                player.facing = 'left';
+            }
+           
+            else {
+                player.velX = 0;
+            }
+            
+        
+            player.x += player.velX;
+            player.y += player.velY;
+            
+        
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
+            
+          
+            player.grounded = false;
+            platforms.forEach(platform => {
+               
+                if (player.x < platform.x + platform.width &&
+                    player.x + player.width > platform.x &&
+                    player.y + player.height > platform.y &&
+                    player.y < platform.y + platform.height) {
+                    
+                    
+                    if (player.velY > 0 && player.y + player.height < platform.y + 20) {
+                        player.grounded = true;
+                        player.jumping = false;
+                        player.velY = 0;
+                        player.y = platform.y - player.height;
+                    }
+                }
+            });
+            
+           
+            stars.forEach(star => {
+                if (!star.collected) {
+                    const dx = player.x + player.width/2 - star.x;
+                    const dy = player.y + player.height/2 - star.y;
+                    const distance = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if (distance < player.width/2 + star.radius) {
+                        star.collected = true;
+                        gameState.score += 100;
+                        gameState.starsCollected++;
+                        updateUI();
+                    }
+                }
+            });
+            
+            powerUps.forEach(powerUp => {
+                if (!powerUp.collected) {
+                    if (player.x < powerUp.x + powerUp.width &&
+                        player.x + player.width > powerUp.x &&
+                        player.y < powerUp.y + powerUp.height &&
+                        player.y + player.height > powerUp.y) {
+                        
+                        powerUp.collected = true;
+                        
+                        if (powerUp.type === 'life') {
+                            gameState.lives++;
+                        } else if (powerUp.type === 'speed') {
+                            gameState.powerUpActive = true;
+                            gameState.powerUpTime = 10;
+                            player.speed = 8;
+                        }
+                        
+                        updateUI();
+                    }
+                }
+            });
+            
+         
+            enemies.forEach(enemy => {
+                if (player.x < enemy.x + enemy.width &&
+                    player.x + player.width > enemy.x &&
+                    player.y < enemy.y + enemy.height &&
+                    player.y + player.height > enemy.y) {
+                    
+                    player.x = 100;
+                    player.y = 500;
+                    player.velY = 0;
+                    gameState.lives--;
+                    updateUI();
+                    
+                    if (gameState.lives <= 0) {
+                        endGame();
+                    }
+                }
+            });
+            
+       
+            enemies.forEach(enemy => {
+                enemy.x += enemy.speed * enemy.direction;
+                
+            
+                let onPlatform = false;
+                platforms.forEach(platform => {
+                    if (enemy.x < platform.x + platform.width &&
+                        enemy.x + enemy.width > platform.x &&
+                        enemy.y + enemy.height <= platform.y + 5 &&
+                        enemy.y + enemy.height >= platform.y - 5) {
+                        onPlatform = true;
+                    }
+                });
+                
+                if (!onPlatform || enemy.x < 0 || enemy.x + enemy.width > canvas.width) {
+                    enemy.direction *= -1;
+                }
+            });
+            
+            
+            if (gameState.gameRunning) {
+                gameState.time -= 1/60;
+                if (gameState.time <= 0) {
+                    endGame();
+                }
+                updateUI();
+            }
+            
+            
+            const allStarsCollected = stars.every(star => star.collected);
+            if (allStarsCollected) {
+                completeLevel();
+            }
+        }
+
+         
+        function updateAnimations() {
+            frameCounter++;
+            
+        
+            if (frameCounter % 8 === 0) {
+                if (player.velX !== 0 && player.grounded) {
+                    currentPlayerFrame = (currentPlayerFrame + 1) % 4;
+                } else if (player.jumping) {
+                    currentPlayerFrame = 4;
+                } else {
+                    currentPlayerFrame = 0;
+                }
+            }
+            
+        
+            if (frameCounter % 10 === 0) {
+                currentEnemyFrame = (currentEnemyFrame + 1) % 2;
+            }
+        }
+
+       
+        function draw() {
+           
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+          
+            platforms.forEach(platform => {
+                ctx.fillStyle = platform.color;
+                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+                
+               
+                ctx.fillStyle = '#3a753a';
+                for (let i = 0; i < platform.width; i += 20) {
+                    ctx.fillRect(platform.x + i, platform.y, 10, 5);
+                }
+            });
+            
+           
+            stars.forEach(star => {
+                if (!star.collected) {
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = star.color;
+                    ctx.fill();
+                    
+                    
+                    const pulse = Math.sin(frameCounter * 0.2) * 3 + 15;
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, pulse, 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(255, 204, 0, ${0.3 + Math.abs(Math.sin(frameCounter * 0.1)) * 0.2})`;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            });
+            
+          
+            powerUps.forEach(powerUp => {
+                if (!powerUp.collected) {
+                    ctx.fillStyle = powerUp.type === 'life' ? '#66ff66' : '#ff66ff';
+                    ctx.beginPath();
+                    ctx.arc(powerUp.x + powerUp.width/2, powerUp.y + powerUp.height/2, powerUp.width/2, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                
+                    ctx.fillStyle = '#1a2a6c';
+                    ctx.font = '20px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    if (powerUp.type === 'life') {
+                        ctx.fillText('❤️', powerUp.x + powerUp.width/2, powerUp.y + powerUp.height/2 - 2);
+                    } else {
+                        ctx.fillText('⚡', powerUp.x + powerUp.width/2, powerUp.y + powerUp.height/2);
+                    }
+                }
+            });
+            
+          
+            enemies.forEach(enemy => {
+                ctx.fillStyle = enemy.color;
+                ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+                
+              
+                ctx.fillStyle = '#000';
+                const eyeOffset = enemy.direction > 0 ? 10 : -10;
+                
+               
+                ctx.beginPath();
+                ctx.arc(enemy.x + enemy.width/2 + eyeOffset/2, enemy.y + 15, 5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.beginPath();
+                ctx.arc(enemy.x + enemy.width/2 + eyeOffset/2, enemy.y + 30, 5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                
+                const mouthY = enemy.y + 45 + (currentEnemyFrame === 0 ? 0 : 2);
+                ctx.beginPath();
+                ctx.arc(enemy.x + enemy.width/2, mouthY, 8, 0, Math.PI);
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+            
+           
+            ctx.fillStyle = '#ff6600';
+            
+            
+            ctx.fillRect(player.x, player.y + 10, player.width, player.height - 10);
+            
+         
+            ctx.beginPath();
+            ctx.arc(player.x + player.width/2, player.y + 10, 15, 0, Math.PI * 2);
+            ctx.fill();
+            
+           
+            ctx.fillStyle = '#1a2a6c';
+            const eyeOffset = player.facing === 'right' ? 5 : -5;
+            ctx.beginPath();
+            ctx.arc(player.x + player.width/2 + eyeOffset, player.y + 5, 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+          
+            const legOffset = currentPlayerFrame % 2 === 0 ? 5 : -5;
+            ctx.fillRect(player.x + 10, player.y + player.height - 10, 8, 10 + legOffset);
+            ctx.fillRect(player.x + player.width - 18, player.y + player.height - 10, 8, 10 - legOffset);
+            
+          
+            ctx.fillRect(player.x - 5, player.y + 20, 5, 15 + legOffset);
+            ctx.fillRect(player.x + player.width, player.y + 20, 5, 15 - legOffset);
+        }
+
+    
+        function gameLoop() {
+            if (gameState.gameRunning) {
+                update();
+                updateAnimations();
+                draw();
+                gameState.gameLoopId = requestAnimationFrame(gameLoop);
+            }
+        }
+
+       
+        function endGame() {
+            gameState.gameRunning = false;
+            cancelAnimationFrame(gameState.gameLoopId);
+            
+            finalScoreElement.textContent = gameState.score;
+            finalLevelElement.textContent = currentLevel;
+            finalStarsElement.textContent = gameState.starsCollected;
+            
+            if (gameState.score >= 1000) {
+                messageElement.textContent = 'Harika performans! Tam bir oyun ustasısın!';
+            } else if (gameState.score >= 500) {
+                messageElement.textContent = 'İyi iş! Daha fazlasını yapabilirsin!';
+            } else {
+                messageElement.textContent = 'Daha iyisini yapabilirsin! Tekrar dene!';
+            }
+            
+            gameOverScreen.style.display = 'flex';
+        }
+
+      
+        function completeLevel() {
+            gameState.gameRunning = false;
+            cancelAnimationFrame(gameState.gameLoopId);
+            
+          
+            const levelBonus = 500 * (currentLevel + 1);
+            gameState.score += levelBonus;
+            
+            levelScoreElement.textContent = gameState.score;
+            levelStarsElement.textContent = gameState.starsCollected;
+            totalStarsElement.textContent = gameState.totalStars;
+            completeLevelElement.textContent = gameState.level;
+            
+            levelCompleteScreen.style.display = 'flex';
+        }
+    </script>
+</body>
+</html>
